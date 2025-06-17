@@ -30,7 +30,7 @@ jobs:
       - name: pack
         run: |
           mv $PWD/out $PWD/SVT-AV1-PSY-static
-          tar --bz -cf SVT-AV1-PSY-static.tb2 $PWD/SVT-AV1-PSY-static
+          tar --bz -cf SVT-AV1-PSY-static.tb2 -C $PWD SVT-AV1-PSY-static
       - name: upload
         uses: actions/upload-artifact@v4
         with:
