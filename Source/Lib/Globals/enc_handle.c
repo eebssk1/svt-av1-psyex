@@ -1543,12 +1543,14 @@ EB_API EbErrorType svt_av1_enc_init(EbComponentType *svt_enc_component)
         input_data.tf_strength = enc_handle_ptr->scs_instance_array[instance_index]->scs->static_config.tf_strength;
         input_data.qp_scale_compress_strength = enc_handle_ptr->scs_instance_array[instance_index]->scs->static_config.qp_scale_compress_strength;
         input_data.max_32_tx_size = enc_handle_ptr->scs_instance_array[instance_index]->scs->static_config.max_32_tx_size;
+        input_data.adaptive_film_grain = enc_handle_ptr->scs_instance_array[instance_index]->scs->static_config.adaptive_film_grain;
         input_data.noise_norm_strength = enc_handle_ptr->scs_instance_array[instance_index]->scs->static_config.noise_norm_strength;
         input_data.kf_tf_strength = enc_handle_ptr->scs_instance_array[instance_index]->scs->static_config.kf_tf_strength;
         input_data.psy_rd = enc_handle_ptr->scs_instance_array[instance_index]->scs->static_config.psy_rd;
         input_data.spy_rd = enc_handle_ptr->scs_instance_array[instance_index]->scs->static_config.spy_rd;
         input_data.hbd_mds = enc_handle_ptr->scs_instance_array[instance_index]->scs->static_config.hbd_mds;
         input_data.sharp_tx = enc_handle_ptr->scs_instance_array[instance_index]->scs->static_config.sharp_tx;
+        input_data.complex_hvs = enc_handle_ptr->scs_instance_array[instance_index]->scs->static_config.complex_hvs;
         //check if all added parameters have been added
         input_data.static_config = enc_handle_ptr->scs_instance_array[instance_index]->scs->static_config;
 
@@ -3286,6 +3288,30 @@ static void derive_vq_params(SequenceControlSet* scs) {
         // Stability
         vq_ctrl->stability_ctrls.depth_refinement = 0;
     }
+
+    switch (scs->static_config.filtering_noise_detection) {
+        case 0:
+            break;
+        case 1:
+            vq_ctrl->sharpness_ctrls.cdef = 1;
+            vq_ctrl->sharpness_ctrls.restoration = 1;
+            break;
+        case 2:
+            vq_ctrl->sharpness_ctrls.cdef = 0;
+            vq_ctrl->sharpness_ctrls.restoration = 0;
+            break;
+        case 3:
+            vq_ctrl->sharpness_ctrls.cdef = 1;
+            vq_ctrl->sharpness_ctrls.restoration = 0;
+            break;
+        case 4:
+            vq_ctrl->sharpness_ctrls.cdef = 0;
+            vq_ctrl->sharpness_ctrls.restoration = 1;
+            break;
+        default:
+            break;
+    }
+
     // Do not use scene_transition if LD or 1st pass or middle pass
     if (scs->static_config.pred_structure != SVT_AV1_PRED_RANDOM_ACCESS || scs->static_config.pass == ENC_FIRST_PASS)
         vq_ctrl->sharpness_ctrls.scene_transition = 0;
@@ -4610,6 +4636,10 @@ static void copy_api_from_app(
 
     // Max 32 TX size
     scs->static_config.max_32_tx_size = config_struct->max_32_tx_size;
+
+    // Adaptive film grain
+    scs->static_config.adaptive_film_grain = config_struct->adaptive_film_grain;
+
     // Noise normalization strength
     scs->static_config.noise_norm_strength = config_struct->noise_norm_strength;
     //Alt-ref keyframe temporal filtering strength
@@ -4620,12 +4650,21 @@ static void copy_api_from_app(
 
     // Spy rd
     scs->static_config.spy_rd = config_struct->spy_rd;
+	
+    // Low Q taper
+    scs->static_config.low_q_taper = config_struct->low_q_taper;
 
     // Sharp TX
     scs->static_config.sharp_tx = config_struct->sharp_tx;
 
     // HBD-MD
     scs->static_config.hbd_mds = config_struct->hbd_mds;
+
+    // Complex HVS
+    scs->static_config.complex_hvs = config_struct->complex_hvs;
+
+    // Filtering noise detection
+    scs->static_config.filtering_noise_detection = config_struct->filtering_noise_detection;
 
     // Override settings for Still Picture tune
     if (scs->static_config.tune == 4) {

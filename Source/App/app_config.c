@@ -207,6 +207,8 @@
 
 #define MAX_32_TX_SIZE_TOKEN "--max-32-tx-size"
 
+#define ADAPTIVE_FILM_GRAIN_TOKEN "--adaptive-film-grain"
+
 #define MIN_CHROMA_QM_LEVEL_TOKEN "--chroma-qm-min"
 #define MAX_CHROMA_QM_LEVEL_TOKEN "--chroma-qm-max"
 
@@ -215,8 +217,11 @@
 
 #define PSY_RD_TOKEN "--psy-rd"
 #define SPY_RD_TOKEN "--spy-rd"
+#define LOW_Q_TAPER_TOKEN "--low-q-taper"
 #define SHARP_TX_TOKEN "--sharp-tx"
 #define HBD_MDS_TOKEN "--hbd-mds"
+#define COMPLEX_HVS_TOKEN "--complex-hvs"
+#define FILTERING_NOISE_DETECTION_TOKEN "--filtering-noise-detection"
 
 static EbErrorType validate_error(EbErrorType err, const char *token, const char *value) {
     switch (err) {
@@ -1259,9 +1264,11 @@ ConfigEntry config_entry_variance_boost[] = {
     {SINGLE_INPUT, VARIANCE_OCTILE_TOKEN, "Octile for variance boost, default is 6 [1-8]", set_cfg_generic_token},
     {SINGLE_INPUT, VARIANCE_BOOST_CURVE_TOKEN, "Curve for variance boost, default is 0 [0-2]", set_cfg_generic_token},
     // QP scale compress
-    {SINGLE_INPUT, QP_SCALE_COMPRESS_STRENGTH_TOKEN, "[PSY] QP scale compress strength, default is 1 [0-3]", set_cfg_generic_token},
+    {SINGLE_INPUT, QP_SCALE_COMPRESS_STRENGTH_TOKEN, "[PSY] QP scale compress strength, default is 1.0 [0.0-8.0]", set_cfg_generic_token},
     // Max 32 tx size
     {SINGLE_INPUT, MAX_32_TX_SIZE_TOKEN, "[PSY] Limits the allowed transform sizes to a maximum of 32x32, default is 0 [0-1]", set_cfg_generic_token},
+    // Adaptive film grain
+    {SINGLE_INPUT, ADAPTIVE_FILM_GRAIN_TOKEN, "[PSY] Adapts film grain blocksize based on video resolution, default is 1 [0-1]", set_cfg_generic_token},
     // Min/max chroma qm
     {SINGLE_INPUT, MIN_CHROMA_QM_LEVEL_TOKEN, "[PSY] Min chroma quant matrix flatness, default is 8 [0-15]", set_cfg_generic_token},
     {SINGLE_INPUT, MAX_CHROMA_QM_LEVEL_TOKEN, "[PSY] Max chroma quant matrix flatness, default is 15 [0-15]", set_cfg_generic_token},
@@ -1270,13 +1277,19 @@ ConfigEntry config_entry_variance_boost[] = {
     //Alt-ref temporal filtering strength on keyframes
     {SINGLE_INPUT, KF_TF_STRENGTH_FILTER_TOKEN, "[PSY] Adjust alt-ref TF strength on keyframes, default is 1 (4x weaker than mainline) [0-4]", set_cfg_generic_token},
     //Psy-rd
-    {SINGLE_INPUT, PSY_RD_TOKEN, "[PSY] Psychovisual rate distortion strength, default is 0.5; high quality mode activated at >=0.6 and <=P6 [0.0-6.0]", set_cfg_generic_token},
+    {SINGLE_INPUT, PSY_RD_TOKEN, "[PSY] Psychovisual rate distortion strength, default is 0.5; high quality mode activated at >=0.6 and <=P6 (P-1 enables complex HVS model) [0.0-6.0]", set_cfg_generic_token},
     //Spy-rd
     {SINGLE_INPUT, SPY_RD_TOKEN, "[PSY] Alternative psychovisual rate distortion pathways, default is 0 [0-2]; 1 = full, 2 = partial", set_cfg_generic_token},
+    //Low Q Taper
+    {SINGLE_INPUT, LOW_Q_TAPER_TOKEN, "Low q taper. If macroblocks are boosted below q11, taper the effect. Default is 0 (off).]", set_cfg_generic_token},
     //Sharp-tx
     {SINGLE_INPUT, SHARP_TX_TOKEN, "[PSY] Sharp transform optimization, default is 1; best used in combination with psy-rd [0-1]", set_cfg_generic_token},
     //HBD Mode Decisions
     {SINGLE_INPUT, HBD_MDS_TOKEN, "[PSY] High Bit-Depth Mode Decision, default is 0 [0: default preset behavior, 1 = 10-bit, 2 = hybrid 8/10-bit, 3 = 8-bit]", set_cfg_generic_token},
+    //Complex HVS
+    {SINGLE_INPUT, COMPLEX_HVS_TOKEN, "[PSY] Enable highest complexity HVS model, default is 0 [0: default preset behavior, 1: complex HVS model based on PSNR-HVS]", set_cfg_generic_token},
+    //Filtering noise detection
+    {SINGLE_INPUT, FILTERING_NOISE_DETECTION_TOKEN, "[PSY] Control noise detection for CDEF/restoration filtering, default is 0 [0: default tune behavior, 1: on, 2: off, 3: on (CDEF only), 4: on (restoration only)]", set_cfg_generic_token},
     // Termination
     {SINGLE_INPUT, NULL, NULL, NULL}};
 
@@ -1477,6 +1490,9 @@ ConfigEntry config_entry[] = {
      // Max 32 tx size
     {SINGLE_INPUT, MAX_32_TX_SIZE_TOKEN, "Max32TxSize", set_cfg_generic_token},
 
+    // Adaptive film grain
+    {SINGLE_INPUT, ADAPTIVE_FILM_GRAIN_TOKEN, "AdaptiveFilmGrain", set_cfg_generic_token},
+
     // Chroma QM
     {SINGLE_INPUT, MIN_CHROMA_QM_LEVEL_TOKEN, "MinChromaQmLevel", set_cfg_generic_token},
     {SINGLE_INPUT, MAX_CHROMA_QM_LEVEL_TOKEN, "MaxChromaQmLevel", set_cfg_generic_token},
@@ -1492,12 +1508,21 @@ ConfigEntry config_entry[] = {
 
     // Spy rd
     {SINGLE_INPUT, SPY_RD_TOKEN, "SpyRd", set_cfg_generic_token},
+	
+	// Low q taper
+    {SINGLE_INPUT, LOW_Q_TAPER_TOKEN, "LowQTaper", set_cfg_generic_token},
 
     // Sharp TX
     {SINGLE_INPUT, SHARP_TX_TOKEN, "SharpTX", set_cfg_generic_token},
 
     // HBD-MDS
     {SINGLE_INPUT, HBD_MDS_TOKEN, "HBDMDS", set_cfg_generic_token},
+
+    // Complex HVS
+    {SINGLE_INPUT, COMPLEX_HVS_TOKEN, "ComplexHVS", set_cfg_generic_token},
+
+    // Filtering noise detection
+    {SINGLE_INPUT, FILTERING_NOISE_DETECTION_TOKEN, "FilteringNoiseDetection", set_cfg_generic_token},
 
     // Termination
     {SINGLE_INPUT, NULL, NULL, NULL}};

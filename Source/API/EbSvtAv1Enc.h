@@ -955,12 +955,12 @@ typedef struct EbSvtAv1EncConfiguration {
     uint8_t extended_crf_qindex_offset;
 
     /* @brief compresses the QP hierarchical layer scale to improve temporal video consistency
-     * 0: no compression, original SVT-AV1 scaling
-     * 1-3: enable compression, the higher the number the stronger the compression
-     *      (different frame quality fluctuation/mean quality tradeoffs)
-     * Default is 1
+     * 0.0: no compression, original SVT-AV1 scaling
+     * 0.0-8.0: enable compression, the higher the number the stronger the compression
+     *         (different frame quality fluctuation/mean quality tradeoffs)
+     * Default is 1.0
      */
-    uint8_t qp_scale_compress_strength;
+    double qp_scale_compress_strength;
 
     /* @brief Limit transform sizes to a maximum of 32x32 pixels
      * 0: disabled, use transform sizes up to 64x64 pixels
@@ -1004,8 +1004,8 @@ typedef struct EbSvtAv1EncConfiguration {
     /**
      * @brief Enable psychovisual rate distortion
      * 0.00: disable PSY-RD
-     * 4.00: enable PSY-RD with a strength of 4.00
-     * Default is 0.00.
+     * 6.00: enable PSY-RD with a strength of 4.00
+     * Default is 1.0.
      */
      double psy_rd;
 
@@ -1017,7 +1017,15 @@ typedef struct EbSvtAv1EncConfiguration {
      * 2: partial (interpolation filter tweaks only)
      * Default is 0
      */
-    uint8_t spy_rd;
+     uint8_t spy_rd;
+
+    /**
+     * @brief Prevent macroblocks from being boosted to very low q.
+     *
+     * Default is 0. 0 = off, 1 = on.
+     */
+     bool low_q_taper;
+
 
     /**
      * @brief Enable sharp-tx, a toggle that enables much sharper transforms decisions for higher fidelity ouput,
@@ -1038,8 +1046,37 @@ typedef struct EbSvtAv1EncConfiguration {
      */
      uint8_t hbd_mds;
 
+     /**
+     * @brief Enable complex-hvs, a feature that enables the highest complexity and highest fidelity
+     HVS model at the cost of higher CPU time
+     * 0: default preset behavior
+     * 1: highest complexity HVS model (SSD-Psy)
+     * Default is 0
+     */
+     uint8_t complex_hvs;
+
+     /* @brief Toggle default film grain blocksize behavior
+      * 0: use default blocksize behavior (32x32)
+      * 1: use adaptive blocksize based on resolution
+      *  - 8x8 for <4k
+      *  - 16x16 for 4k
+      * Default is 1
+      */
+     bool adaptive_film_grain;
+
+     /**
+     * @brief Controls noise detection for CDEF/restoration filtering
+     * 0: default tune behavior
+     * 1: on
+     * 2: off
+     * 2: on (CDEF only)
+     * 3: on (restoration only)
+     * Default is 0
+     */
+     uint8_t filtering_noise_detection;
+
     /*Add 128 Byte Padding to Struct to avoid changing the size of the public configuration struct*/
-    uint8_t padding[128 - 1 * sizeof(bool) - 9 * sizeof(uint8_t) - sizeof(double)];
+    uint8_t padding[128 - 3 * sizeof(bool) - 10 * sizeof(uint8_t) - 2 * sizeof(double)];
 } EbSvtAv1EncConfiguration;
 
 /**

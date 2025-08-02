@@ -19,7 +19,7 @@ endif()
 project(svt-av1 VERSION 3.0.2
     LANGUAGES C CXX)
 
-# set(VERSION_TAG "-B")
+  set(VERSION_TAG "-A")
 
 if(POLICY CMP0063)
   cmake_policy(SET CMP0063 NEW)
@@ -248,6 +248,13 @@ endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "Clang" AND SVT_AV1_PGO)
     find_program(LLVM_PROFDATA llvm-profdata)
+    if(NOT LLVM_PROFDATA AND APPLE)
+        find_program(XCRUN xcrun)
+        execute_process(COMMAND ${XCRUN} --find llvm-profdata
+            OUTPUT_VARIABLE LLVM_PROFDATA
+            ERROR_QUIET
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+    endif()
     if(NOT LLVM_PROFDATA)
         message(FATAL_ERROR "llvm-profdata not found.")
     endif()

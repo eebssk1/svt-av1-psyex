@@ -1262,14 +1262,16 @@ typedef struct PictureControlSetInitData {
     uint8_t variance_boost_strength;
     uint8_t variance_octile;
     uint8_t tf_strength;
-    uint8_t qp_scale_compress_strength;
+    double  qp_scale_compress_strength;
     bool    max_32_tx_size;
+    bool    adaptive_film_grain;
     uint8_t noise_norm_strength;
     uint8_t kf_tf_strength;
     double  psy_rd;
     uint8_t spy_rd;
     uint8_t sharp_tx;
     uint8_t hbd_mds;
+    uint8_t complex_hvs;
 } PictureControlSetInitData;
 
 typedef struct Av1Comp {

@@ -887,9 +887,15 @@ EbErrorType svt_av1_verify_settings(SequenceControlSet *scs) {
         return_error = EB_ErrorBadParameter;
     }
 
-    if (config->qp_scale_compress_strength > 3) {
-        SVT_ERROR("Instance %u: QP scale compress strength must be between 0 and 3\n", channel_number + 1);
+    if (config->qp_scale_compress_strength < 0.0 || config->qp_scale_compress_strength > 8.0) {
+        SVT_ERROR("Instance %u: QP scale compress strength must be between 0.0 and 8.0\n", channel_number + 1);
         return_error = EB_ErrorBadParameter;
+    }
+    else if (config->qp_scale_compress_strength > 4.0) {
+        SVT_WARN(
+            "Instance %u: Using a high QP Scale Compress Strength is only useful under specific situations. "
+            "Use with caution!\n",
+            channel_number + 1);
     }
 
     if (config->noise_norm_strength > 4) {
@@ -917,6 +923,11 @@ EbErrorType svt_av1_verify_settings(SequenceControlSet *scs) {
         return_error = EB_ErrorBadParameter;
     }
 
+    // if (config->low_q_taper > 1) {
+    //     SVT_ERROR("Instance %u: low-q-taper must be between 0 and 1\n", channel_number + 1);
+    //     return_error = EB_ErrorBadParameter;
+    // }
+
     if (config->sharp_tx > 1) {
         SVT_ERROR("Instance %u: sharp-tx must be either 0 and 1\n", channel_number + 1);
         return_error = EB_ErrorBadParameter;
@@ -927,6 +938,16 @@ EbErrorType svt_av1_verify_settings(SequenceControlSet *scs) {
         return_error = EB_ErrorBadParameter;
     }
 
+    if (config->complex_hvs > 1) {
+        SVT_ERROR("Instance %u: complex-hvs must be between 0 and 1\n", channel_number + 1);
+        return_error = EB_ErrorBadParameter;
+    }
+
+    if (config->filtering_noise_detection > 4) {
+        SVT_ERROR("Instance %u: filtering-noise-detection must be between 0 and 4\n", channel_number + 1);
+        return_error = EB_ErrorBadParameter;
+    }
+    
     return return_error;
 }
 
@@ -1026,7 +1047,7 @@ EbErrorType svt_av1_set_default_params(EbSvtAv1EncConfiguration *config_ptr) {
     // Alt-Ref default values
     config_ptr->enable_tf       = 1;
     config_ptr->enable_overlays = false;
-    config_ptr->tune            = 2;
+    config_ptr->tune            = 1;
     // Super-resolution default values
     config_ptr->superres_mode      = SUPERRES_NONE;
     config_ptr->superres_denom     = SCALE_NUMERATOR;
@@ -1056,7 +1077,7 @@ EbErrorType svt_av1_set_default_params(EbSvtAv1EncConfiguration *config_ptr) {
 
     // Quant Matrices (QM)
     config_ptr->enable_qm    = 1;
-    config_ptr->min_qm_level = 2;
+    config_ptr->min_qm_level = 4;
     config_ptr->max_qm_level = 15;
     config_ptr->min_chroma_qm_level = 8;
     config_ptr->max_chroma_qm_level = 15;
@@ -1081,12 +1102,16 @@ EbErrorType svt_av1_set_default_params(EbSvtAv1EncConfiguration *config_ptr) {
     config_ptr->extended_crf_qindex_offset        = 0;
     config_ptr->qp_scale_compress_strength        = 1;
     config_ptr->max_32_tx_size                    = false;
+    config_ptr->adaptive_film_grain               = true;
     config_ptr->noise_norm_strength               = 1;
     config_ptr->kf_tf_strength                    = 1;
-    config_ptr->psy_rd                            = 0.5;
+    config_ptr->psy_rd                            = 1.0;
     config_ptr->spy_rd                            = 0;
+    config_ptr->low_q_taper                       = 0;
     config_ptr->sharp_tx                          = 1;
     config_ptr->hbd_mds                           = 0;
+    config_ptr->complex_hvs                       = 0;
+    config_ptr->filtering_noise_detection         = 0;
     return return_error;
 }
 static const char *tier_to_str(unsigned in) {
@@ -1204,10 +1229,17 @@ void svt_av1_print_lib_params(SequenceControlSet *scs) {
         }
 
         if (config->film_grain_denoise_strength != 0) {
-            SVT_INFO("SVT [config]: film grain synth / denoising / level \t\t\t\t: %d / %d / %d\n",
-                     1,
-                     config->film_grain_denoise_apply,
-                     config->film_grain_denoise_strength);
+            if (config->adaptive_film_grain) {
+                SVT_INFO("SVT [config]: film grain synth / denoising / level / adaptive blocksize \t: %d / %d / %d / True\n",
+                         1,
+                         config->film_grain_denoise_apply,
+                         config->film_grain_denoise_strength);
+            } else {
+                SVT_INFO("SVT [config]: film grain synth / denoising / level / adaptive blocksize \t: %d / %d / %d / False\n",
+                         1,
+                         config->film_grain_denoise_apply,
+                         config->film_grain_denoise_strength);
+            }
         }
         SVT_INFO("SVT [config]: sharpness / luminance-based QP bias \t\t\t\t: %d / %d\n",
                  config->sharpness,
@@ -1222,7 +1254,7 @@ void svt_av1_print_lib_params(SequenceControlSet *scs) {
         default: break;
         }
 
-        SVT_INFO("SVT [config]: QP scale compress strength \t\t\t\t\t: %d\n",
+        SVT_INFO("SVT [config]: QP scale compress strength \t\t\t\t\t: %.2f\n",
                  config->qp_scale_compress_strength);
 
         if (config->noise_norm_strength >= 0) {
@@ -1243,6 +1275,29 @@ void svt_av1_print_lib_params(SequenceControlSet *scs) {
         SVT_INFO("SVT [config]: spy-rd \t\t\t\t\t\t\t: %s\n",
         config->spy_rd == 1 ? "oui" : (config->spy_rd == 2 ? "ouais" : "non"));
         
+		if (config->low_q_taper) {
+            SVT_INFO("SVT [config]: Low Q Taper \t\t\t\t\t\t\t: %s\n",
+                    config->low_q_taper ? "On" : "Off");
+        }
+        
+        switch (config->filtering_noise_detection) {
+            case 0:
+                break;
+            case 1:
+                SVT_INFO("SVT [config]: filtering noise detection \t\t\t\t\t: on\n");
+                break;
+            case 2:
+                SVT_INFO("SVT [config]: filtering noise detection \t\t\t\t\t: off\n");
+                break;
+            case 3:
+                SVT_INFO("SVT [config]: filtering noise detection \t\t\t\t\t: on (CDEF only)\n");
+                break;
+            case 4:
+                SVT_INFO("SVT [config]: filtering noise detection \t\t\t\t\t: on (restoration only)\n");
+                break;
+            default:
+                break;
+        }
     }
 #ifdef DEBUG_BUFFERS
     SVT_INFO("SVT [config]: INPUT / OUTPUT \t\t\t\t\t\t\t: %d / %d\n",
@@ -2118,7 +2173,6 @@ EB_API EbErrorType svt_av1_enc_parse_parameter(EbSvtAv1EncConfiguration *config_
         {"variance-boost-strength", &config_struct->variance_boost_strength},
         {"variance-octile", &config_struct->variance_octile},
         {"variance-boost-curve", &config_struct->variance_boost_curve},
-        {"qp-scale-compress-strength", &config_struct->qp_scale_compress_strength},
         {"fast-decode", &config_struct->fast_decode},
         {"luminance-qp-bias", &config_struct->luminance_qp_bias},
         {"noise-norm-strength", &config_struct->noise_norm_strength},
@@ -2128,6 +2182,8 @@ EB_API EbErrorType svt_av1_enc_parse_parameter(EbSvtAv1EncConfiguration *config_
         {"spy-rd", &config_struct->spy_rd},
         {"hbd-mds", &config_struct->hbd_mds},
         {"sharp-tx", &config_struct->sharp_tx},
+        {"complex-hvs", &config_struct->complex_hvs},
+        {"filtering-noise-detection", &config_struct->filtering_noise_detection},
     };
     const size_t uint8_opts_size = sizeof(uint8_opts) / sizeof(uint8_opts[0]);
 
@@ -2167,6 +2223,7 @@ EB_API EbErrorType svt_av1_enc_parse_parameter(EbSvtAv1EncConfiguration *config_
         const char *name;
         double     *out;
     } double_opts[] = {
+        {"qp-scale-compress-strength", &config_struct->qp_scale_compress_strength},
         {"psy-rd", &config_struct->psy_rd},
     };
     const size_t double_opts_size = sizeof(double_opts) / sizeof(double_opts[0]);
@@ -2247,6 +2304,8 @@ EB_API EbErrorType svt_av1_enc_parse_parameter(EbSvtAv1EncConfiguration *config_
         {"lossless", &config_struct->lossless},
         {"avif", &config_struct->avif},
         {"max-32-tx-size", &config_struct->max_32_tx_size},
+        {"adaptive-film-grain", &config_struct->adaptive_film_grain},
+        {"low-q-taper", &config_struct->low_q_taper},
     };
     const size_t bool_opts_size = sizeof(bool_opts) / sizeof(bool_opts[0]);
 

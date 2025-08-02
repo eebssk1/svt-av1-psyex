@@ -1266,7 +1266,11 @@ static void svt_aom_set_sg_filter_ctrls(Av1Common *cm, uint8_t sg_filter_lvl) {
 static uint8_t svt_aom_get_wn_filter_level(EncMode enc_mode, uint8_t input_resolution, bool is_not_last_layer,
                                            const uint8_t is_base) {
     uint8_t wn_filter_lvl = 0;
-    if (enc_mode <= ENC_M7)
+    //PSY: We fully enable the wiener filter to increase coding gains as much as possible
+    //at P-1 since we only care about 10MB challenges/classical metrics
+    if (enc_mode <= ENC_MR)
+        wn_filter_lvl = 1;
+    else if (enc_mode <= ENC_M7)
         wn_filter_lvl = is_not_last_layer ? 5 : 0;
     else if (enc_mode <= ENC_M8)
         wn_filter_lvl = is_base ? 5 : 0;
@@ -1831,7 +1835,7 @@ void svt_aom_sig_deriv_multi_processes(SequenceControlSet *scs, PictureParentCon
         pcs->hbd_md = 2;
 
     } else if (pcs->scs->static_config.hbd_mds == 3) {
-        pcs->hbd_md = 3;
+        pcs->hbd_md = 0;
     }
 }
     else
@@ -8507,10 +8511,12 @@ void svt_aom_sig_deriv_mode_decision_config(SequenceControlSet *scs, PictureCont
         else
             pcs->mds0_level = is_islice ? 2 : 4;
     } else {
-        //Enable SSD mode decision L0 only when psy-rd>=0.5
-        //as the quality benefits of SSD mode decision L0 are dubious
-        //for the computational cost when not using the feature
-        if (pcs->scs->static_config.psy_rd >= 0.6){
+        //We want to respect the user choice when they enable complex-hvs
+        //If they enable the setting, we trust that they are using high enough
+        //psy-rd to make it effective
+        if (pcs->scs->static_config.complex_hvs == 1){
+            pcs->mds0_level = 1;
+        } else if (pcs->scs->static_config.psy_rd >= 1.2){
             if (enc_mode <= ENC_MR)
                 pcs->mds0_level = 1;
             //With P6 and slower when psy-rd is enabled, there are
